@@ -74,40 +74,113 @@ Random Forest Regressor digunakan untuk memprediksi tingkat kemacetan berdasarka
 
 ## 📊 3. Jenis & Sumber Data
 
-| Jenis Data            | Sumber              | Format              | Fungsi                                           |
-| --------------------- | ------------------- | ------------------- | ------------------------------------------------ |
-| Jaringan Jalan        | OpenStreetMap (OSM) | GraphML             | Membangun peta, pencarian rute, dan pelatihan AI |
-| Koordinat Lokasi      | Nominatim (OSM)     | Tuple (lat, long)   | Menentukan node terdekat dari input lokasi       |
-| Label Kemacetan       | Simulasi (dari OSM) | Integer (0/1)       | Melatih model Random Forest                      |
-| Prediksi Kemacetan    | Model AI (RF)       | List of tuples      | Penalti rute, visualisasi                        |
-| Rute & Estimasi Waktu | Hasil perhitungan   | List, float, string | Menampilkan rute dan informasi waktu tempuh      |
+| Jenis Data                      | Sumber                            |  Fungsi                                                        |
+| ---------------------           | -------------------               | ------------------------------------------------               |
+| Jaringan Jalan                  | OpenStreetMap (OSM)               | Representasi graf kota: node (persimpangan), edge (ruas jalan) |
+| Fitur jalan(panjang)            | OSM data / hasil perhitungan)     | Input untuk prediksi kemacetan                                 |
+| Lokasi awal dan tujuan pengguna | Input pengguna                    | Menentukan rute pencarian                      |
+| waktu saat ini                  | datetime Python                   | Penalti rute, visualisasi                        |
+| dara historis kemacetan         | Sensor jalan / API lalu lintas    | Untuk model lanjutan      |
+
+📊 Jenis Data
+1.	Data Jaringan Jalan (Graph Jalan)
+   * Isi: Node (titik persimpangan) dan edge (ruas jalan) dengan atribut seperti panjang ruas (length).
+   * Format: GraphML (jalan_kota_bengkulu.graphml).
+     Digunakan untuk: Membangun peta, mencari rute, dan melatih model AI.
+2.	Data Lokasi Awal & Tujuan
+  * Isi: Nama lokasi yang diinput user (misal: "Universitas Bengkulu", "Pantai Panjang").
+  * Format: String (teks).
+    Digunakan untuk: Dicari koordinatnya melalui proses geocoding.
+3.	Data Koordinat Geografis
+  * Isi: Latitude dan longitude hasil geocoding dari nama lokasi.
+  * Format: Tuple float (latitude, longitude).
+   Digunakan untuk: Menentukan node terdekat pada graph.
+4.	Data Label Kemacetan
+  * Isi: Label macet/tidak macet pada setiap ruas jalan, berdasarkan panjang ruas.
+  * Format: Integer (1 = macet, 0 = tidak macet).
+   Digunakan untuk: Melatih model Random Forest.
+5.	Data Prediksi Kemacetan
+  * Isi: Daftar ruas jalan yang diprediksi macet oleh model AI
+  * 	Format: List of tuples (node1, node2).
+    Digunakan untuk: Memberi penalti pada rute alternatif, visualisasi di peta.
+6.	Data Rute & Estimasi Waktu
+  * Isi: Urutan node rute utama dan alternatif, jarak tempuh, estimasi waktu tempuh (jalan kaki, motor, mobil).
+  * Format: List, float, string.
+    Digunakan untuk: Menampilkan rute dan informasi di peta.
+
+🌐 Sumber Data
+1.	OpenStreetMap (OSM)
+  * Diperoleh dengan: Library osmnx.
+  * Data yang diambil: Jaringan jalan kota Bengkulu (node, edge, panjang ruas).
+  * Keterangan: Data diunduh satu kali dan disimpan ke file lokal (jalan_kota_bengkulu.graphml).
+2.	Nominatim (OpenStreetMap Geocoding Service)
+  * Diperoleh dengan: Library geopy.
+  * Data yang diambil: Koordinat geografis (latitude, longitude) dari nama lokasi input user.
+3.	Data Label Kemacetan (Simulasi)
+  * Dibuat dari: Data panjang ruas jalan pada graph OSM.
+  * Metode: Ruas jalan dengan panjang > 200 meter diberi label macet, sisanya tidak macet.
+  * Keterangan: Bukan data kemacetan real-time, hanya simulasi untuk pelatihan model AI.
+
+📝 Ringkasan
+
+| Jenis Data                      | Sumber                           | Cara diperoleh     |  Keterangan                                                      |
+| ---------------------           | -------------------              | -------------------  | ------------------------------------------------               |
+| Jaringan Jalan                  | OpenStreetMap (OSM)              | osmnx | Graph jalan kota Bengkulu |
+| Koordinat lokasi           | Nominatim (OSM)    | geopy | Hasil geocoding nama tempat                                 |
+| Label kemacetan | Simulasi (dari OSM)                    | Berdasarkan panjang ruas| Untuk pelatihan Random Forest                      |
+| Prediksi kemacetan                  | Model AI (RF)                   | Output prediksi| Untuk penalti rute & visual                        |
+| Rute & estimasi         | Hasil perhitungan   | Algoritma rute & waktu | Untuk info ke user      |
 
 ### 🔹 Praproses Data:
 
-* Unduh data jalan via `osmnx`
-* Bangun graf menggunakan `networkx`
-* Hitung panjang ruas jalan
-* Label kemacetan: jika panjang > 200 m → **macet** (1)
+* Metode Pengumpulan & Praproses:Unduh data jalan dari OpenStreetMap menggunakan OSMnx.
+* Bangun graph jalan menggunakan NetworkX.
+* Hitung panjang tiap ruas jalan (fitur utama).
+* Label kemacetan disimulasikan berdasarkan panjang > 200 meter (sederhana untuk tahap awal).
+* Untuk sistem nyata, gunakan API lalu lintas (Google, TomTom, atau sensor kota).
+
 
 ---
 
-## ⚙️ 4. Alur Kerja Sistem
+## ⚙️ 4. Alur Kerja Proses Sistem Navigasi SmartCity Bengkulu
 
-```plaintext
-Input Lokasi Awal & Tujuan
-         ↓
-    Geocoding Lokasi
-         ↓
-     Cari Node Terdekat
-         ↓
-   Prediksi Kemacetan (RF)
-         ↓
-     Beri Penalti ke Jalan Macet
-         ↓
-     Algoritma Dijkstra untuk Rute
-         ↓
-      Tampilkan di Peta Interaktif
-```
+1. 🧾 Masukan Pengguna
+Input Lokasi: Pengguna mengisi lokasi awal dan tujuan melalui form HTML.
+Validasi Form: Sistem memeriksa apakah kedua lokasi terisi dan berbeda, serta menghindari input kosong.
+Pemrosesan: Permintaan dikirim ke backend (/generate-route) menggunakan metode POST.
+2. 🗺 Pemetaan dan Praproses
+Geokode Lokasi: Sistem menggunakan Nominatim untuk mencari koordinat lokasi di Bengkulu.
+Pemetaan ke Jaringan Jalan: Lokasi dikonversi ke node terdekat pada graf jalan dari OpenStreetMap (OSM), dimuat dari file .graphml.
+
+3. 🚦 Analisis Kemacetan
+Prediksi Model ML: Model Random Forest (rf_model.pkl) menilai kemacetan tiap ruas berdasarkan panjang jalan (length).
+
+   Klasifikasi Ruas: Ruas yang diprediksi padat ditandai sebagai “macet” dan dikenakan penalti untuk rute alternatif.
+
+4. 🚗 Penentuan Rute
+Algoritma Rute:
+Rute utama dihitung dengan A* menggunakan bobot panjang jalan.
+Rute alternatif dihitung dengan Dijkstra sambil menerapkan penalti pada ruas macet.
+
+   Estimasi Waktu: Waktu tempuh dihitung berdasarkan kecepatan rata-rata per moda (jalan kaki, motor, mobil).
+
+5. 🗂 Visualisasi dan Antarmuka
+Peta Interaktif: Folium menghasilkan HTML dengan rute utama, rute alternatif, dan titik kemacetan.
+
+  Warna Jalur:
+   * 🟥 Merah: ruas macet
+   * 🔵 Biru: rute utama lancar
+   * 🟢 Hijau strip: rute alternatif
+  Panel Informasi:
+ * Menampilkan nama lokasi, waktu, jarak, dan estimasi waktu perjalanan.
+ * Peringatan kemacetan muncul jika rute utama melewati ruas padat.
+
+6. 🖥 Antarmuka Web Responsif
+Form Input (HTML): Diatur dengan PyQt/HTML, menggunakan ikon dan gaya UI modern.
+Map Output: iframe diperbarui secara dinamis untuk menampilkan rute terbaru (smartcity_rute_kemacetan.html).
+Feedback Pengguna: Status pemrosesan dan hasil ditampilkan secara interaktif.
+
+
 
 ---
 
@@ -115,62 +188,140 @@ Input Lokasi Awal & Tujuan
 
 ```plaintext
 smartcity-bengkulu/
-│
-├── app/                         # FastAPI backend
-│   ├── main.py                  # Endpoint utama
-│   ├── model.py                 # Model Random Forest
-│   └── utils.py                 # Fungsi bantu (routing, penalti)
-│
+│                     
+│── main.py                               # File utama phyton
+|
 ├── data/
-│   ├── jalan_kota_bengkulu.graphml  # Data graf OSM
-│   └── label_kemacetan.csv          # Data simulasi label kemacetan
+    ├──generate_navigation_map.py         #script pembuatan peta demo
+│   ├── jalan_kota_bengkulu.graphml       # file graf dari OSM
 │
-├── static/
-│   └── map.html                # Visualisasi peta Folium
+│── smartcity_rute_kemacetan.html         # output peta yang ditampilkan
 │
-├── templates/
-│   └── index.html              # Tampilan web utama
+│── index.html                            # Tampilan web utama
 │
-├── requirements.txt
 └── README.md
 ```
 
----
+## 📁 6. Diagram Alur
+![image](https://github.com/user-attachments/assets/42513924-1e39-4548-bcd4-9ee7e5d8a57b)
 
-## 📈 6. Evaluasi Model
 
-### Evaluasi Model AI
+## 📈 7. Contoh Kasus Uji 
 
-Jika tersedia data nyata:
+ * 🧪 Uji 1:
+      ![image](https://github.com/user-attachments/assets/7447c282-fce8-4b72-b708-95f3a9daaa98)
 
-* 🔹 **Akurasi**
-* 🔹 **Precision & Recall**
-* 🔹 **F1 Score**
+        * Lokasi Awal: Terminal Panorama
+        * Lokasi Tujuan: RS M. Yunus
+   * ✅ Hasil:
+   * Jarak utama: 2.498 m
+   * Jarak alternatif: 2.601 m
+   * Prediksi kemacetan terdeteksi pada rute utama (ditandai garis merah)
+   * Rute alternatif disarankan (garis hijau putus-putus)
 
-### Evaluasi Sistem Keseluruhan
+ * 🧪 Uji 2:
+      ![image](https://github.com/user-attachments/assets/cbeca7e0-5ba9-4715-8e49-4a9b16d25dbf)
 
-* 🔹 **Waktu respon**
-* 🔹 **Feedback pengguna**
-* 🔹 **Uji lapangan (bandingkan prediksi vs realita)**
+         * Lokasi Awal: Simpang Skip
+         * Lokasi Tujuan: Universitas Bengkulu
+    * ✅ Hasil:
+    * Jarak utama utama 2.025 m
+    * Jarak alternatif 2.165 m
+    * Kemacetan terdeteksi di rute utama (tengah)
+    * Rute alternatif disarankan
+    * Estimasi waktu:
+    * Jalan kaki: 25 menit
+    * Motor: 8 menit
+    * Mobil: 10 menit
 
----
+ * 🧪 Uji 3:
+      ![image](https://github.com/user-attachments/assets/3a1ce74a-64bd-45fa-ac03-6feec6ea7cd2)
+ 
+         * Lokasi Awal: Taman Smart City
+         * Lokasi Tujuan: Masjid Al-Taqwa
+    * ✅ Hasil:
+    * Jarak utama: 2.383 m
+    * Jarak alternatif: 3.422 m
+    * Terjadi kemacetan di ruas tengah rute utama (garis merah)
+    * Rute alternatif (hijau putus-putus) lebih panjang, namun disarankan
+    * Estimasi waktu:
+    * Jalan kaki: 29 menit
+    * Motor: 9 menit
+    * Mobil: 11 menit
+    * Panel kemacetan otomatis muncul
+      
+ * 🧪 Uji 4:
+      ![image](https://github.com/user-attachments/assets/e47a0aab-3cb6-42f3-966b-ba89ade463e0)
 
-## 🚀 7. Rencana Pengembangan
+           * Lokasi Awal: Pasar Minggu
+           * Lokasi Tujuan: Simpang Padang Harapan
+   * ✅ Hasil:
+   * Jarak utama: 2.129 m
+   * Jarak alternatif: 2.346 m
+   * Terjadi kemacetan di ruas tengah rute utama (garis merah)
+   * Rute alternatif (hijau putus-putus) lebih panjang, namun disarankan
+   * Estimasi waktu:
+   * Jalan kaki: 26 menit
+   * Motor: 8 menit
+   * Mobil: 10 menit
+   * Panel kemacetan otomatis muncul
 
-✅ Integrasi data lalu lintas waktu nyata (API / sensor)
-✅ Prediksi berbasis waktu, cuaca, atau event kota
-✅ Push notification ke ponsel
-✅ Model AI lanjutan:
+ * 🧪 Uji 5:
+      ![image](https://github.com/user-attachments/assets/904ab799-ebf5-42ee-943d-b2acc52c6023)
 
-* GNN (Graph Neural Network)
-* LSTM (Time-based prediksi)
-* Reinforcement Learning (optimasi jangka panjang)
+         * Lokasi Awal: Stadion Semarak
+         * Lokasi Tujuan: Rumah Dinas Gubernur
+* ✅ Hasil:
+* Jarak utama: 1.384 m
+* Jarak alternatif: 1.592 m
+* Terjadi kemacetan di ruas tengah rute utama (garis merah)
+* Rute alternatif (hijau putus-putus) lebih panjang, namun disarankan
+* Estimasi waktu:
+* Jalan kaki: 17 menit
+* Motor: 5 menit
+* Mobil: 6 menit
+* Panel kemacetan otomatis muncul
 
-✅ Pembuatan Aplikasi Mobile (Flutter / React Native)
-✅ Dashboard untuk pemantauan lalu lintas kota
-✅ Dukungan voice navigation & live rerouting
+Skema Pengujian Fitur
+* 	Pencarian Rute: Penguji memasukkan lokasi awal dan tujuan, lalu menekan tombol “Temukan Rute”. Sistem harus   menampilkan rute utama, rute alternatif, serta estimasi waktu tempuh untuk berjalan kaki, motor, dan mobil.
+* Deteksi Kemacetan: Sistem harus dapat mendeteksi kemacetan pada rute utama (ditandai warna merah pada peta) dan secara otomatis merekomendasikan rute alternatif (warna biru/hijau).
+*	Visualisasi Peta: Penguji memastikan peta interaktif berjalan lancar, marker lokasi awal/tujuan tampil jelas, dan legenda warna rute mudah dipahami.
+*	Estimasi Jarak dan Waktu: Sistem harus menampilkan jarak tempuh (meter) dan estimasi waktu perjalanan (menit) untuk setiap moda transportasi.
+Hasil Pengujian
+*	Semua fitur utama, seperti pencarian rute, deteksi kemacetan, dan visualisasi peta, berjalan sesuai fungsinya.
+*	Sistem berhasil menampilkan peringatan jika rute utama mengalami kemacetan dan merekomendasikan rute alternatif.
+*	Estimasi waktu dan jarak tampil akurat dan responsif terhadap perubahan input pengguna.
+*	Aplikasi mudah digunakan, dengan tampilan antarmuka yang informatif dan intuitif bagi pengguna umum.
 
----
+
+
+📈 4. Strategi Evaluasi Model
+* 🔹 Evaluasi Model AI (Random Forest):
+  * 	Jika memakai data real (label kemacetan aktual), evaluasi dengan:
+     * 	Akurasi
+     * 	Precision & Recall (untuk lihat trade-off salah prediksi)
+     * 	F1 Score (gabungan presisi dan recall)
+* 🔹 Evaluasi Sistem Keseluruhan:
+  * Waktu respon sistem (real-time atau tidak)
+  * Feedback pengguna terhadap akurasi rute & prediksi macet
+  * Uji lapangan: Bandingkan rute vs kondisi nyata
+
+## 🏛️ 7. 🚀 Pengembangan Lanjutan
+Untuk meningkatkan manfaat bagi masyarakat, fitur tambahan bisa ditambahkan:
+* ✅Integrasi data waktu nyata dari API atau sensor lalu lintas.
+* ✅Prediksi waktu tempuh berdasarkan waktu, cuaca, atau event kota.
+* ✅Peringatan notifikasi real-time ke ponsel pengguna.
+* ✅Model AI lebih kompleks:
+     * Graph Neural Network (GNN): lebih cocok untuk graf jalan.
+     * LSTM: prediksi berdasarkan waktu (jam sibuk).
+     * Reinforcement Learning: untuk optimasi rute jangka panjang.
+
+Dashboard SmartCity: untuk pemantauan lalu lintas oleh dinas kota
+ * 🔄 Integrasi data real-time dari CCTV / Google Maps
+ * 📲 Pembuatan aplikasi mobile dengan Flutter / React Native
+ * 🔔 Push notifikasi untuk rute padat
+ * 🧭 Dukungan voice navigation dan live rerouting
+
 
 ## 🏛️ 8. Kontributor
 
@@ -186,5 +337,3 @@ Jika tersedia data nyata:
 **Tahun**: 2025
 
 ---
-
-Jika kamu ingin, saya juga bisa bantu buatkan file `README.md` versi Markdown siap pakai atau konversi ke format PDF.
